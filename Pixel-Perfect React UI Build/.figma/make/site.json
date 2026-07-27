@@ -1,0 +1,10 @@
+{
+  "description": "This interactive web application offers a seamless music sharing experience, allowing users to create and join rooms, play songs, and connect with friends in real-time.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}

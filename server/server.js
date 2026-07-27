@@ -8,6 +8,10 @@ const app = express();
 app.use(cors());
 app.use('/audio', express.static(fileURLToPath(new URL('../client/public/audio', import.meta.url))));
 
+app.get('/api/songs', (req, res) => {
+  res.json(Object.values(TRACKS));
+});
+
 const server = http.createServer(app);
 
 // Socket.IO server with CORS for development (allow all origins)
@@ -541,6 +545,10 @@ io.on('connection', (socket) => {
   // ------------------------------------------------------------
   socket.on('disconnect', () => {
     removeUserFromRoom(socket, 'disconnect');
+  });
+
+  socket.on('ping', (callback) => {
+    if (typeof callback === 'function') callback();
   });
 });
 
