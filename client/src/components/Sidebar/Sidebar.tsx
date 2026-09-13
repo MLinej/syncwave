@@ -88,14 +88,15 @@ function NavLink({ label, icon, activeIcon, active, onClick }: NavLinkProps) {
   return (
     <motion.button
       onClick={onClick}
-      className={`w-full flex items-center gap-3 px-3 py-[10px] rounded-lg text-left transition-colors ${
+      title={label}
+      className={`shrink-0 w-auto lg:w-full flex items-center gap-3 px-3 py-[10px] rounded-lg text-left transition-colors ${
         active ? "bg-[rgba(255,255,255,0.1)]" : "hover:bg-[rgba(255,255,255,0.05)]"
       }`}
       whileHover={{ scale: 1.01 }}
       whileTap={{ scale: 0.98 }}
     >
       <span className="shrink-0">{active ? activeIcon : icon}</span>
-      <span className={`text-[14px] font-[Inter,sans-serif] leading-[21px] ${
+      <span className={`hidden lg:inline text-[14px] font-[Inter,sans-serif] leading-[21px] whitespace-nowrap ${
         active ? "text-white font-normal" : "text-[rgba(255,255,255,0.6)] font-normal"
       }`}>
         {label}
@@ -124,18 +125,18 @@ export default function Sidebar() {
   const isConnected = socketStatus === "connected";
 
   return (
-    <aside className="backdrop-blur-[20px] bg-[rgba(255,255,255,0.06)] h-full rounded-3xl shrink-0 w-[215px] border border-[rgba(255,255,255,0.08)] flex flex-col px-6 py-8 gap-0">
+    <aside className="backdrop-blur-[20px] bg-[rgba(255,255,255,0.06)] lg:h-full rounded-3xl shrink-0 w-full lg:w-[215px] border border-[rgba(255,255,255,0.08)] flex flex-row lg:flex-col items-center lg:items-stretch gap-3 lg:gap-0 px-4 lg:px-6 py-3 lg:py-8 overflow-x-auto lg:overflow-visible">
       {/* Logo */}
-      <div className="flex items-center gap-2 mb-10">
+      <div className="flex items-center gap-2 shrink-0 lg:mb-10">
         <SonicSyncIcon />
-        <span className="text-white text-[32px] font-black tracking-[-0.32px] font-[Inter,sans-serif] leading-none">
+        <span className="hidden lg:inline text-white text-[32px] font-black tracking-[-0.32px] font-[Inter,sans-serif] leading-none">
           SonicSync
         </span>
       </div>
 
       {/* Main nav */}
-      <div className="flex flex-col gap-1 flex-1">
-        <p className="text-[rgba(255,255,255,0.4)] text-[10px] font-bold tracking-[1px] uppercase px-3 pb-2 font-[Inter,sans-serif]">
+      <div className="flex flex-row lg:flex-col items-center lg:items-stretch gap-1 flex-1 min-w-0">
+        <p className="hidden lg:block text-[rgba(255,255,255,0.4)] text-[10px] font-bold tracking-[1px] uppercase px-3 pb-2 font-[Inter,sans-serif]">
           MAIN MENU
         </p>
         {navItems.map((item) => (
@@ -153,8 +154,8 @@ export default function Sidebar() {
         )}
 
         {/* System section */}
-        <div className="pt-6">
-          <p className="text-[rgba(255,255,255,0.4)] text-[10px] font-bold tracking-[1px] uppercase px-3 pb-2 font-[Inter,sans-serif]">
+        <div className="flex flex-row lg:flex-col items-center lg:items-stretch pt-0 lg:pt-6">
+          <p className="hidden lg:block text-[rgba(255,255,255,0.4)] text-[10px] font-bold tracking-[1px] uppercase px-3 pb-2 font-[Inter,sans-serif]">
             SYSTEM
           </p>
           {systemItems.map((item) => (
@@ -164,7 +165,7 @@ export default function Sidebar() {
       </div>
 
       {/* User profile */}
-      <div className="backdrop-blur-[10px] bg-[rgba(255,255,255,0.04)] rounded-2xl border border-[rgba(255,255,255,0.08)] p-4 flex items-center gap-3">
+      <div className="backdrop-blur-[10px] bg-[rgba(255,255,255,0.04)] rounded-2xl border border-[rgba(255,255,255,0.08)] p-2 lg:p-4 flex items-center gap-3 shrink-0">
         <div className="relative shrink-0">
           {currentUser?.avatarUrl ? (
             <img src={currentUser.avatarUrl} alt={currentUser.name} className="w-10 h-10 rounded-full object-cover" />
@@ -176,7 +177,7 @@ export default function Sidebar() {
             </div>
           )}
         </div>
-        <div className="flex-1 min-w-0">
+        <div className="hidden lg:block flex-1 min-w-0">
           <p className="text-white text-[14px] font-semibold truncate font-[Inter,sans-serif]">
             {currentUser?.name ?? "Guest"}
           </p>

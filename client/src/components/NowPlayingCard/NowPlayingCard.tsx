@@ -52,7 +52,7 @@ function EqualiserBars() {
 export default function NowPlayingCard() {
   const { currentTrack, playbackState, loading, isHost, connectedUsers } = useApp();
   const { play, pause } = usePlayback();
-  const { isPlaying, position } = playbackState;
+  const { isPlaying } = playbackState;
 
   const isEveryoneReady = connectedUsers.every(u => u.trackStatus === 'ready');
 
@@ -67,11 +67,11 @@ export default function NowPlayingCard() {
   };
 
   return (
-    <div className="backdrop-blur-[20px] bg-[rgba(255,255,255,0.06)] h-[320px] rounded-[40px] shrink-0 w-full border border-[rgba(255,255,255,0.08)] overflow-hidden relative">
-      <div className="flex items-start p-10 gap-10 h-full">
+    <div className="backdrop-blur-[20px] bg-[rgba(255,255,255,0.06)] rounded-[32px] sm:rounded-[40px] shrink-0 w-full border border-[rgba(255,255,255,0.08)] overflow-hidden relative">
+      <div className="flex flex-col sm:flex-row items-center sm:items-start p-6 sm:p-8 lg:p-10 gap-6 sm:gap-8 lg:gap-10">
         {/* Album art */}
         <motion.div
-          className="relative rounded-2xl shadow-[0px_25px_50px_-12px_rgba(0,0,0,0.25)] shrink-0 size-[240px] overflow-hidden"
+          className="relative rounded-2xl shadow-[0px_25px_50px_-12px_rgba(0,0,0,0.25)] shrink-0 size-[140px] sm:size-[180px] lg:size-[240px] overflow-hidden"
           whileHover={{ scale: 1.02 }}
           transition={{ type: "spring", stiffness: 300 }}
         >
@@ -84,13 +84,13 @@ export default function NowPlayingCard() {
         </motion.div>
 
         {/* Song info & controls */}
-        <div className="flex-1 h-full relative flex flex-col justify-center">
+        <div className="flex-1 min-w-0 w-full relative flex flex-col items-center sm:items-start text-center sm:text-left justify-center gap-1">
           {loading ? (
             <Loader variant="spinner" message="Loading track..." />
           ) : (
             <>
               {/* Now Playing label */}
-              <div className="flex items-center gap-2 mb-2 absolute top-0 left-0">
+              <div className="flex items-center gap-2 mb-1 sm:mb-2 sm:absolute sm:top-0 sm:left-0">
                 <span className="text-[#ffb3ae] text-[11px] font-black tracking-[1.1px] uppercase font-[Inter,sans-serif]">
                   NOW PLAYING
                 </span>
@@ -98,8 +98,8 @@ export default function NowPlayingCard() {
               </div>
 
               {/* Title */}
-              <div className="mt-8">
-                <h2 className="text-white text-[48px] font-black tracking-[-0.96px] font-[Inter,sans-serif] leading-[52.8px]">
+              <div className="sm:mt-8 min-w-0 w-full">
+                <h2 className="text-white text-[26px] sm:text-[36px] lg:text-[48px] font-black tracking-[-0.96px] font-[Inter,sans-serif] leading-[1.15] lg:leading-[52.8px] truncate">
                   {currentTrack?.title || (
                     <span className="text-[rgba(255,255,255,0.3)]">No track selected</span>
                   )}
@@ -107,29 +107,29 @@ export default function NowPlayingCard() {
 
                 {/* Artist / album */}
                 {currentTrack && (
-                  <p className="text-[rgba(255,255,255,0.6)] text-[20px] font-semibold font-[Inter,sans-serif] mt-1">
+                  <p className="text-[rgba(255,255,255,0.6)] text-[14px] sm:text-[16px] lg:text-[20px] font-semibold font-[Inter,sans-serif] mt-1 truncate">
                     {currentTrack.artist} • {currentTrack.album}
                   </p>
                 )}
               </div>
 
               {/* Controls */}
-              <div className="flex items-center gap-6 mt-8">
+              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 sm:gap-6 mt-4 sm:mt-8">
                 <motion.button
                   onClick={handlePlaySync}
                   disabled={!isHost || !currentTrack || (!isPlaying && !isEveryoneReady)}
-                  className={`drop-shadow-[0px_0px_7.5px_rgba(255,77,77,0.4)] flex items-center gap-2 px-8 py-3 rounded-full ${(!isHost || !currentTrack || (!isPlaying && !isEveryoneReady)) ? 'bg-gray-500 opacity-50 cursor-not-allowed' : 'bg-[#ff4d4d]'}`}
-                  whileHover={(!isHost || !currentTrack || (!isPlaying && !isEveryoneReady)) ? {} : { scale: 1.04 }} 
+                  className={`drop-shadow-[0px_0px_7.5px_rgba(255,77,77,0.4)] flex items-center gap-2 px-5 sm:px-8 py-2.5 sm:py-3 rounded-full ${(!isHost || !currentTrack || (!isPlaying && !isEveryoneReady)) ? 'bg-gray-500 opacity-50 cursor-not-allowed' : 'bg-[#ff4d4d]'}`}
+                  whileHover={(!isHost || !currentTrack || (!isPlaying && !isEveryoneReady)) ? {} : { scale: 1.04 }}
                   whileTap={(!isHost || !currentTrack || (!isPlaying && !isEveryoneReady)) ? {} : { scale: 0.96 }}
                 >
                   <PlayIcon />
-                  <span className="text-white text-[16px] font-bold font-[Inter,sans-serif] leading-[24px]">
+                  <span className="text-white text-[14px] sm:text-[16px] font-bold font-[Inter,sans-serif] leading-[24px] whitespace-nowrap">
                     {isPlaying ? "Pause" : (!currentTrack ? "Play" : (!isEveryoneReady ? "Waiting..." : "Play"))} Sync
                   </span>
                 </motion.button>
 
                 <motion.button
-                  className="backdrop-blur-[10px] bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.2)] px-8 py-3 rounded-full"
+                  className="hidden sm:inline-flex backdrop-blur-[10px] bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.2)] px-8 py-3 rounded-full"
                   whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}
                 >
                   <span className="text-white text-[16px] font-bold font-[Inter,sans-serif]">Follow Room</span>

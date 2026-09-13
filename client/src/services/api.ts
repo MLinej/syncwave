@@ -1,10 +1,9 @@
-import type { Room, Song, PlaybackState, User } from "@/types";
+import type { Room, Song, User } from "@/types";
 import { getSocket } from "./socket";
-
-const BASE_URL = "http://10.10.10.164:3000/api";
+import { API_BASE_URL } from "@/config";
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE_URL}${path}`, {
+  const res = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
   });
   if (!res.ok) {
@@ -112,20 +111,19 @@ export async function selectSong(songId: string, roomCode?: string): Promise<voi
   }
 }
 
-export async function playSong(roomCode?: string): Promise<PlaybackState> {
-  const socket = getSocket();
-  if (roomCode) {
-    socket.emit("play-track", { roomCode });
-  }
-  return getPlaybackState();
+// These fire the request over the socket and return immediately — the real,
+// authoritative state change comes back to every client (including this one)
+// as a 'playback-state-updated' broadcast. There is deliberately no local
+// optimistic state write here: with scheduled playback now driving exact
+// timing, a second write path racing the broadcast would fight the scheduler.
+export function playSong(roomCode?: string): void {
+  if (!roomCode) return;
+  getSocket().emit("play-track", { roomCode });
 }
 
-export async function stopSong(roomCode?: string): Promise<PlaybackState> {
-  const socket = getSocket();
-  if (roomCode) {
-    socket.emit("stop-track", { roomCode });
-  }
-  return getPlaybackState();
+export function stopSong(roomCode?: string): void {
+  if (!roomCode) return;
+  getSocket().emit("stop-track", { roomCode });
 }
 
 export function emitTrackReady(roomCode: string, trackId: string) {
@@ -133,30 +131,14 @@ export function emitTrackReady(roomCode: string, trackId: string) {
   socket.emit("track-ready", { roomCode, trackId });
 }
 
-export async function pauseSong(roomCode?: string): Promise<PlaybackState> {
-  const socket = getSocket();
-  if (roomCode) {
-      socket.emit("pause-track", { roomCode });
-  }
-  return getPlaybackState();
+export function pauseSong(roomCode?: string): void {
+  if (!roomCode) return;
+  getSocket().emit("pause-track", { roomCode });
 }
 
-export async function seekSong(position: number, roomCode?: string): Promise<PlaybackState> {
-  const socket = getSocket();
-  if (roomCode) {
-      socket.emit("seek-track", { roomCode, position });
-  }
-  return getPlaybackState();
-}
-
-export async function getPlaybackState(): Promise<PlaybackState> {
-  return {
-    currentSong: null,
-    isPlaying: false,
-    position: 0,
-    volume: 1,
-    isSynced: false
-  };
+export function seekSong(position: number, roomCode?: string): void {
+  if (!roomCode) return;
+  getSocket().emit("seek-track", { roomCode, position });
 }
 
 // Mapper to map backend room structure to frontend Room structure

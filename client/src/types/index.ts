@@ -33,7 +33,10 @@ export interface Room {
 export interface PlaybackState {
   currentSong: Song | null;
   isPlaying: boolean;
-  position: number; // seconds
+  status: 'playing' | 'paused' | 'stopped';
+  position: number; // seconds — live display position, ticked locally during playback
+  anchorPosition: number; // seconds — position AT scheduleAt, from server; used for scheduling/drift math
+  scheduleAt: number | null; // server clock (ms) timestamp when this state should take effect
   volume: number; // 0-1
   isSynced: boolean;
 }
@@ -47,6 +50,7 @@ export interface AppState {
   playback: PlaybackState;
   socketStatus: SocketStatus;
   latency: number;
+  clockOffsetMs: number; // serverTime - localTime, from clock-sync
   isLoading: boolean;
   error: string | null;
 }

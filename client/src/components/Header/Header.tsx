@@ -68,48 +68,48 @@ export default function Header() {
   const [search, setSearch] = useState("");
 
   return (
-    <div className="h-[114px] relative shrink-0 w-full">
+    <div className="relative shrink-0 w-full flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 lg:gap-6 lg:min-h-[114px]">
       {/* Left: back/forward + title */}
-      <div className="absolute left-2 top-1/2 -translate-y-1/2 flex items-center gap-4">
+      <div className="flex items-center gap-3 sm:gap-4 min-w-0">
         <motion.button
-          className="backdrop-blur-[10px] bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.08)] h-10 w-[27px] flex items-center justify-center rounded-full"
+          className="hidden sm:flex backdrop-blur-[10px] bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.08)] h-10 w-[27px] items-center justify-center rounded-full shrink-0"
           whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
           onClick={() => window.history.back()}
         >
           <ChevronLeftIcon />
         </motion.button>
         <motion.button
-          className="backdrop-blur-[10px] bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.08)] h-10 w-[27px] flex items-center justify-center rounded-full"
+          className="hidden sm:flex backdrop-blur-[10px] bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.08)] h-10 w-[27px] items-center justify-center rounded-full shrink-0"
           whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
           onClick={() => window.history.forward()}
         >
           <ChevronRightIcon />
         </motion.button>
 
-        <div className="flex flex-col gap-1">
-          <div className="flex flex-col">
-            <h1 className="text-white text-[32px] font-bold tracking-[-0.32px] font-[Inter,sans-serif] leading-[38.4px]">
+        <div className="flex flex-col gap-1 min-w-0">
+          <div className="flex flex-row lg:flex-col gap-1 lg:gap-0 flex-wrap">
+            <h1 className="text-white text-[22px] sm:text-[28px] lg:text-[32px] font-bold tracking-[-0.32px] font-[Inter,sans-serif] leading-[1.2] lg:leading-[38.4px] truncate">
               Distributed
             </h1>
-            <h1 className="text-white text-[32px] font-bold tracking-[-0.32px] font-[Inter,sans-serif] leading-[38.4px]">
+            <h1 className="text-white text-[22px] sm:text-[28px] lg:text-[32px] font-bold tracking-[-0.32px] font-[Inter,sans-serif] leading-[1.2] lg:leading-[38.4px] truncate">
               Music Player
             </h1>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             {roomCode && (
-              <div className="bg-[rgba(198,191,255,0.2)] px-2 py-[2px] rounded-full">
+              <div className="bg-[rgba(198,191,255,0.2)] px-2 py-[2px] rounded-full shrink-0">
                 <span className="text-[#e4dfff] text-[10px] font-bold font-[Inter,sans-serif] leading-[15px]">
                   ROOM: {roomCode}
                 </span>
               </div>
             )}
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 shrink-0">
               <WifiIcon />
               <span className="text-[rgba(255,255,255,0.4)] text-[12px] font-[Inter,sans-serif]">
                 Latency: {latency > 0 ? `${latency}ms` : "--"}
               </span>
             </div>
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 shrink-0">
               <div className={`w-1.5 h-1.5 rounded-full ${socketConnected ? "bg-[#4ade80]" : "bg-red-500 animate-pulse"}`} />
               <span className={`text-[12px] font-semibold font-[Inter,sans-serif] ${socketConnected ? "text-[#4ade80]" : "text-red-500"}`}>
                 {socketConnected ? "Connected" : "Reconnecting..."}
@@ -120,18 +120,18 @@ export default function Header() {
       </div>
 
       {/* Right: search + action icons */}
-      <div className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-6">
-        <div className="backdrop-blur-[20px] bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.1)] flex items-center gap-3 px-4 py-[9px] rounded-full">
+      <div className="flex items-center gap-3 sm:gap-6 flex-wrap lg:flex-nowrap lg:shrink-0">
+        <div className="backdrop-blur-[20px] bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.1)] flex items-center gap-3 px-4 py-[9px] rounded-full flex-1 sm:flex-none min-w-0">
           <SearchIcon />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search track or user..."
-            className="bg-transparent text-[14px] text-white placeholder-[rgba(255,255,255,0.2)] font-[Inter,sans-serif] outline-none w-48"
+            className="bg-transparent text-[14px] text-white placeholder-[rgba(255,255,255,0.2)] font-[Inter,sans-serif] outline-none w-full sm:w-48 min-w-0"
           />
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           <motion.button className="opacity-60 hover:opacity-100 transition-opacity" whileTap={{ scale: 0.9 }}>
             <NotificationIcon />
           </motion.button>

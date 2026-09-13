@@ -1,23 +1,14 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback } from "react";
 import { useApp } from "@/context/AppContext";
 import * as api from "@/services/api";
-import { emitPlay, emitPause, emitSeek } from "@/services/socket";
 
+// Local position ticking and the duplicate HTTP+socket write path were
+// removed: they raced the scheduled 'playback-state-updated' broadcast from
+// the server. GlobalAudio now owns `playback.position` (ticked from the
+// actual <audio> element each second), and play/pause/seek here only emit —
+// the server broadcast is the single source of truth for isPlaying/position.
 export function usePlayback() {
   const { playback, setPlayback, setError, room } = useApp();
-  const positionTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  // Advance position locally while playing
-  useEffect(() => {
-    if (playback.isPlaying) {
-      positionTimerRef.current = setInterval(() => {
-        setPlayback({ position: playback.position + 1 });
-      }, 1000);
-    }
-    return () => {
-      if (positionTimerRef.current) clearInterval(positionTimerRef.current);
-    };
-  }, [playback.isPlaying, playback.position, setPlayback]);
 
   const select = useCallback(async (songId: string) => {
     try {
@@ -27,35 +18,29 @@ export function usePlayback() {
     }
   }, [room?.id, setError]);
 
-  const play = useCallback(async () => {
+  const play = useCallback(() => {
     try {
-      const state = await api.playSong(room?.id);
-      setPlayback(state);
-      emitPlay("", room?.id, 0); // legacy socket.ts
+      api.playSong(room?.id);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Playback failed");
     }
-  }, [room?.id, setPlayback, setError]);
+  }, [room?.id, setError]);
 
-  const pause = useCallback(async () => {
+  const pause = useCallback(() => {
     try {
-      const state = await api.pauseSong(room?.id);
-      setPlayback(state);
-      emitPause(room?.id);
+      api.pauseSong(room?.id);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Pause failed");
     }
-  }, [setPlayback, setError]);
+  }, [room?.id, setError]);
 
-  const seek = useCallback(async (position: number) => {
+  const seek = useCallback((position: number) => {
     try {
-      setPlayback({ position });
-      await api.seekSong(position, room?.id);
-      emitSeek(position, room?.id);
+      api.seekSong(position, room?.id);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Seek failed");
     }
-  }, [setPlayback, setError]);
+  }, [room?.id, setError]);
 
   const setVolume = useCallback((volume: number) => {
     setPlayback({ volume: Math.max(0, Math.min(1, volume)) });

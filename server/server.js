@@ -6,7 +6,7 @@ import { fileURLToPath } from 'url';
 
 const app = express();
 app.use(cors());
-app.use('/audio', express.static(fileURLToPath(new URL('../client/public/audio', import.meta.url))));
+app.use('/audio', express.static(fileURLToPath(new URL('./public/audio', import.meta.url))));
 
 app.get('/api/songs', (req, res) => {
   res.json(Object.values(TRACKS));
@@ -26,7 +26,15 @@ const io = new Server(server, {
 // Map<roomCode, Room>
 const rooms = new Map();
 
-const TRACK_FILES = ['audio1.mp3', 'audio2.mp3'];
+// How far in the future we schedule a playback change. Every client needs
+// this long to receive the broadcast AND silently pre-roll its audio element
+// (decoder warm-up + buffering) so that the scheduled instant costs nothing
+// but a gain change. Too low and slow devices miss the window and start late;
+// too high and the host feels lag after pressing play.
+// LAN: 600-800ms is comfortable. Internet/mobile: try 1000-1500ms.
+const BUFFER_MS = 800;
+
+const TRACK_FILES = ['song1.wav', 'song2.wav', 'song3.wav', 'song4.m4a', 'song5.m4a', 'song6.m4a'];
 
 function formatTrackName(filename) {
   return filename
@@ -84,10 +92,10 @@ function getRoomState(room) {
     roomCode: room.roomCode,
     users: room.users.map(getPublicUser),
     currentTrack: room.currentTrack ?? null,
-    playbackState: {
-      ...room.playbackState,
-      position: getPlaybackPosition(room.playbackState)
-    }
+    // Sent as the raw anchor (status/position-at-scheduleAt/scheduleAt) so
+    // late joiners run the exact same "expected position" math as clients
+    // that were already connected when the scheduled change fired.
+    playbackState: room.playbackState
   };
 }
 
@@ -95,30 +103,44 @@ function createPlaybackState() {
   return {
     status: 'stopped',
     position: 0,
-    updatedAt: null
+    scheduleAt: null
   };
 }
 
-function getPlaybackPosition(playbackState) {
+/**
+ * Computes what the playback position would be AT a given wall-clock time,
+ * given a playbackState anchor (position at scheduleAt). Used both for
+ * "position right now" (late joiners) and for computing the anchor of the
+ * NEXT scheduled state from the current one (e.g. pause needs to know the
+ * position at the moment the pause actually takes effect, not at the moment
+ * the command was received).
+ */
+function getPositionAtTime(playbackState, atTime) {
   if (!playbackState) {
     return 0;
   }
 
-  if (playbackState.status !== 'playing' || !playbackState.updatedAt) {
+  if (playbackState.status !== 'playing' || !playbackState.scheduleAt) {
     return playbackState.position ?? 0;
   }
 
-  return playbackState.position + Math.max(0, (Date.now() - playbackState.updatedAt) / 1000);
+  if (atTime < playbackState.scheduleAt) {
+    // Scheduled play hasn't actually started yet at this point in time.
+    return playbackState.position;
+  }
+
+  return playbackState.position + Math.max(0, (atTime - playbackState.scheduleAt) / 1000);
+}
+
+function getPlaybackPosition(playbackState) {
+  return getPositionAtTime(playbackState, Date.now());
 }
 
 function emitPlaybackState(roomCode, room, action) {
   io.to(roomCode).emit('playback-state-updated', {
     roomCode,
     action,
-    playbackState: {
-      ...room.playbackState,
-      position: getPlaybackPosition(room.playbackState)
-    }
+    playbackState: room.playbackState
   });
 }
 
@@ -436,12 +458,17 @@ io.on('connection', (socket) => {
       return;
     }
 
+    const now = Date.now();
+    const scheduleAt = now + BUFFER_MS;
+    const startPosition = getPositionAtTime(room.playbackState, now);
+
     room.playbackState = {
       status: 'playing',
-      position: getPlaybackPosition(room.playbackState),
-      updatedAt: Date.now()
+      position: startPosition,
+      scheduleAt
     };
 
+    console.log(`[Scheduler] play in ${code}: scheduleAt=${scheduleAt} (+${BUFFER_MS}ms), startPosition=${startPosition.toFixed(2)}s`);
     emitPlaybackState(code, room, 'play');
   });
 
@@ -464,12 +491,19 @@ io.on('connection', (socket) => {
       return;
     }
 
+    const now = Date.now();
+    const scheduleAt = now + BUFFER_MS;
+    // Playback keeps advancing until the scheduled instant, so the frozen
+    // position after pause is the position AT scheduleAt, not right now.
+    const positionAtSchedule = getPositionAtTime(room.playbackState, scheduleAt);
+
     room.playbackState = {
       status: 'paused',
-      position: getPlaybackPosition(room.playbackState),
-      updatedAt: Date.now()
+      position: positionAtSchedule,
+      scheduleAt
     };
 
+    console.log(`[Scheduler] pause in ${code}: scheduleAt=${scheduleAt} (+${BUFFER_MS}ms), positionAtSchedule=${positionAtSchedule.toFixed(2)}s`);
     emitPlaybackState(code, room, 'pause');
   });
 
@@ -492,12 +526,15 @@ io.on('connection', (socket) => {
       return;
     }
 
+    const scheduleAt = Date.now() + BUFFER_MS;
+
     room.playbackState = {
       status: 'stopped',
       position: 0,
-      updatedAt: Date.now()
+      scheduleAt
     };
 
+    console.log(`[Scheduler] stop in ${code}: scheduleAt=${scheduleAt} (+${BUFFER_MS}ms)`);
     emitPlaybackState(code, room, 'stop');
   });
 
@@ -525,12 +562,15 @@ io.on('connection', (socket) => {
       return;
     }
 
+    const scheduleAt = Date.now() + BUFFER_MS;
+
     room.playbackState = {
       status: room.playbackState.status,
       position,
-      updatedAt: room.playbackState.status === 'playing' ? Date.now() : room.playbackState.updatedAt
+      scheduleAt
     };
 
+    console.log(`[Scheduler] seek in ${code}: scheduleAt=${scheduleAt} (+${BUFFER_MS}ms), position=${position.toFixed(2)}s, status=${room.playbackState.status}`);
     emitPlaybackState(code, room, 'seek');
   });
 
@@ -549,6 +589,17 @@ io.on('connection', (socket) => {
 
   socket.on('ping', (callback) => {
     if (typeof callback === 'function') callback();
+  });
+
+  // ------------------------------------------------------------
+  // CLOCK SYNC
+  // Client sends its own Date.now(); we echo ours back via the ack
+  // callback. Client computes RTT and offset = serverTime - (clientTime + rtt/2).
+  // ------------------------------------------------------------
+  socket.on('clock-sync', (data, callback) => {
+    if (typeof callback === 'function') {
+      callback({ serverTime: Date.now(), clientTime: data?.clientTime ?? null });
+    }
   });
 });
 

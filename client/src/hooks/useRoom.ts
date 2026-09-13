@@ -1,7 +1,6 @@
 import { useCallback, useState } from "react";
 import { useApp } from "@/context/AppContext";
 import * as api from "@/services/api";
-import { emitJoinRoom, emitLeaveRoom } from "@/services/socket";
 
 export function useRoom() {
   const { room, setRoom, setError, setLoading, setActiveNav } = useApp();
@@ -28,7 +27,6 @@ export function useRoom() {
     try {
       const joinedRoom = await api.joinRoom(roomId.trim());
       setRoom(joinedRoom);
-      emitJoinRoom(joinedRoom.id);
       setActiveNav("dashboard");
       setJoinRoomId("");
     } catch (err) {
@@ -43,7 +41,6 @@ export function useRoom() {
     setError(null);
     try {
       await api.leaveRoom(room?.id);
-      emitLeaveRoom(room?.id);
       setRoom(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to leave room");

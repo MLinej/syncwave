@@ -17,6 +17,7 @@ interface AppContextValue extends AppState {
   setPlayback: (state: Partial<PlaybackState>) => void;
   setSocketStatus: (status: SocketStatus) => void;
   setLatency: (ms: number) => void;
+  setClockOffsetMs: (ms: number) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   setCurrentUser: (user: User | null) => void;
@@ -29,6 +30,7 @@ type Action =
   | { type: "SET_PLAYBACK"; payload: Partial<PlaybackState> }
   | { type: "SET_SOCKET_STATUS"; payload: SocketStatus }
   | { type: "SET_LATENCY"; payload: number }
+  | { type: "SET_CLOCK_OFFSET"; payload: number }
   | { type: "SET_LOADING"; payload: boolean }
   | { type: "SET_ERROR"; payload: string | null }
   | { type: "SET_CURRENT_USER"; payload: User | null }
@@ -42,12 +44,16 @@ const initialState: AppState & { activeNav: NavItem } = {
   playback: {
     currentSong: null,
     isPlaying: false,
+    status: "stopped",
     position: 0,
+    anchorPosition: 0,
+    scheduleAt: null,
     volume: 0.75,
     isSynced: false,
   },
   socketStatus: "disconnected",
   latency: 0,
+  clockOffsetMs: 0,
   isLoading: false,
   error: null,
   activeNav: "dashboard",
@@ -65,6 +71,8 @@ function reducer(state: typeof initialState, action: Action): typeof initialStat
       return { ...state, socketStatus: action.payload };
     case "SET_LATENCY":
       return { ...state, latency: action.payload };
+    case "SET_CLOCK_OFFSET":
+      return { ...state, clockOffsetMs: action.payload };
     case "SET_LOADING":
       return { ...state, isLoading: action.payload };
     case "SET_ERROR":
@@ -91,6 +99,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const setPlayback = useCallback((p: Partial<PlaybackState>) => dispatch({ type: "SET_PLAYBACK", payload: p }), []);
   const setSocketStatus = useCallback((s: SocketStatus) => dispatch({ type: "SET_SOCKET_STATUS", payload: s }), []);
   const setLatency = useCallback((ms: number) => dispatch({ type: "SET_LATENCY", payload: ms }), []);
+  const setClockOffsetMs = useCallback((ms: number) => dispatch({ type: "SET_CLOCK_OFFSET", payload: ms }), []);
   const setLoading = useCallback((l: boolean) => dispatch({ type: "SET_LOADING", payload: l }), []);
   const setError = useCallback((e: string | null) => dispatch({ type: "SET_ERROR", payload: e }), []);
   const setCurrentUser = useCallback((u: User | null) => dispatch({ type: "SET_CURRENT_USER", payload: u }), []);
@@ -116,7 +125,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       socketConnected,
       isHost,
       loading,
-      setRoom, setSongs, setPlayback, setSocketStatus, setLatency,
+      setRoom, setSongs, setPlayback, setSocketStatus, setLatency, setClockOffsetMs,
       setLoading, setError, setCurrentUser, setActiveNav, updateRoomUsers,
     }}>
       {children}

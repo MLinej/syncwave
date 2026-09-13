@@ -1,8 +1,6 @@
 import { io, Socket } from "socket.io-client";
 import type { PlaybackState, Room, Song, User } from "@/types";
-
-// Connect to backend server running on port 3000
-const SOCKET_URL = "http://10.10.10.164:3000";
+import { SOCKET_URL } from "@/config";
 
 export type SocketEventMap = {
   roomJoined: (room: Room) => void;
@@ -44,26 +42,6 @@ export function disconnectSocket(): void {
     socket.disconnect();
     socket = null;
   }
-}
-
-export function emitPlay(songId: string, roomCode?: string, position?: number): void {
-  // handled in api.ts
-}
-
-export function emitPause(roomCode?: string): void {
-  // handled in api.ts
-}
-
-export function emitSeek(position: number, roomCode?: string): void {
-  // handled in api.ts
-}
-
-export function emitJoinRoom(roomId: string): void {
-  // handled in api.ts
-}
-
-export function emitLeaveRoom(roomId?: string): void {
-  // handled in api.ts
 }
 
 export function onEvent<K extends keyof SocketEventMap>(

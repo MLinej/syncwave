@@ -121,13 +121,13 @@ export default function BottomPlayer() {
 
   return (
     <motion.div
-      className="fixed bottom-8 left-16 right-16 max-w-[1152px] mx-auto backdrop-blur-[20px] bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.08)] rounded-full px-8 py-4 flex items-center justify-between shadow-[0px_25px_50px_-12px_rgba(0,0,0,0.25)] z-50"
+      className="fixed bottom-2 left-2 right-2 sm:bottom-4 sm:left-4 sm:right-4 lg:bottom-8 lg:left-16 lg:right-16 max-w-[1152px] mx-auto backdrop-blur-[20px] bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.08)] rounded-3xl sm:rounded-full px-4 sm:px-6 lg:px-8 py-3 lg:py-4 flex flex-col sm:flex-row items-center gap-3 sm:gap-4 lg:justify-between shadow-[0px_25px_50px_-12px_rgba(0,0,0,0.25)] z-50"
       initial={{ y: 20, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ type: "spring", stiffness: 200, damping: 25 }}
     >
       {/* Track info */}
-      <div className="flex items-center gap-4 w-[271px]">
+      <div className="flex items-center gap-4 w-full sm:w-[180px] lg:w-[271px] min-w-0 order-1">
         <div className="relative shrink-0">
           <div className="w-12 h-12 rounded-xl overflow-hidden border border-[rgba(255,255,255,0.1)] shadow-[0px_10px_15px_-3px_rgba(0,0,0,0.1)]">
             {currentTrack?.coverUrl ? (
@@ -145,15 +145,15 @@ export default function BottomPlayer() {
             {currentTrack?.artist ?? ""}
           </p>
         </div>
-        <button className="opacity-30 hover:opacity-60 transition-opacity">
+        <button className="hidden sm:block opacity-30 hover:opacity-60 transition-opacity shrink-0">
           <HeartIcon30 />
         </button>
       </div>
 
       {/* Controls + seek */}
-      <div className="flex flex-col items-center gap-2 max-w-[512px] w-[512px]">
-        <div className="flex items-center gap-8">
-          <motion.button className="opacity-40 hover:opacity-80 transition-opacity" whileTap={{ scale: 0.9 }}>
+      <div className="flex flex-col items-center gap-2 w-full sm:flex-1 lg:max-w-[512px] order-2 min-w-0">
+        <div className="flex items-center gap-5 sm:gap-6 lg:gap-8">
+          <motion.button className="hidden sm:block opacity-40 hover:opacity-80 transition-opacity" whileTap={{ scale: 0.9 }}>
             <PrevIcon />
           </motion.button>
           <motion.button className="opacity-70 hover:opacity-100 transition-opacity" whileTap={{ scale: 0.9 }}>
@@ -162,8 +162,8 @@ export default function BottomPlayer() {
           <motion.button
             onClick={handlePlayPause}
             disabled={!isHost || !currentTrack || (!isPlaying && !isEveryoneReady)}
-            className={`w-12 h-12 rounded-full flex items-center justify-center drop-shadow-[0px_0px_10px_rgba(255,255,255,0.3)] ${(!isHost || !currentTrack || (!isPlaying && !isEveryoneReady)) ? 'bg-[rgba(255,255,255,0.3)] cursor-not-allowed' : 'bg-white'}`}
-            whileHover={(!isHost || !currentTrack || (!isPlaying && !isEveryoneReady)) ? {} : { scale: 1.06 }} 
+            className={`w-12 h-12 rounded-full flex items-center justify-center drop-shadow-[0px_0px_10px_rgba(255,255,255,0.3)] shrink-0 ${(!isHost || !currentTrack || (!isPlaying && !isEveryoneReady)) ? 'bg-[rgba(255,255,255,0.3)] cursor-not-allowed' : 'bg-white'}`}
+            whileHover={(!isHost || !currentTrack || (!isPlaying && !isEveryoneReady)) ? {} : { scale: 1.06 }}
             whileTap={(!isHost || !currentTrack || (!isPlaying && !isEveryoneReady)) ? {} : { scale: 0.94 }}
           >
             {isPlaying ? <PauseIcon /> : <PlayIcon />}
@@ -171,7 +171,7 @@ export default function BottomPlayer() {
           <motion.button className="opacity-70 hover:opacity-100 transition-opacity" whileTap={{ scale: 0.9 }}>
             <SkipForwardIcon />
           </motion.button>
-          <motion.button className="opacity-40 hover:opacity-80 transition-opacity" whileTap={{ scale: 0.9 }}>
+          <motion.button className="hidden sm:block opacity-40 hover:opacity-80 transition-opacity" whileTap={{ scale: 0.9 }}>
             <NextIcon />
           </motion.button>
         </div>
@@ -198,7 +198,7 @@ export default function BottomPlayer() {
       </div>
 
       {/* Volume + sync status */}
-      <div className="flex items-center justify-end gap-6 w-[271px]">
+      <div className="hidden lg:flex items-center justify-end gap-6 w-[271px] order-3">
         <div className="flex items-center gap-2">
           <VolumeIcon />
           <div
