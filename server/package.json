@@ -5,12 +5,16 @@
   "main": "server.js",
   "type": "module",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node --watch server.js"
+    "start": "node --env-file-if-exists=.env server.js",
+    "dev": "node --env-file-if-exists=.env --watch server.js",
+    "build:client": "npm --prefix ../client run build"
   },
   "dependencies": {
     "express": "^4.18.2",
     "socket.io": "^4.7.4",
     "cors": "^2.8.5"
+  },
+  "engines": {
+    "node": ">=22.9"
   }
 }

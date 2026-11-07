@@ -5,8 +5,17 @@ import path from 'node:path'
 
 import siteConfiguration from './.figma/make/site.json'
 
+const BACKEND_DEV_URL = process.env.BACKEND_DEV_URL || 'http://localhost:3000'
+
 // Vite config — https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
+  // On Vercel the frontend and the Socket.IO server live on different domains.
+  // Without the server URL the build would "work" but every visitor would sit
+  // on "Connecting…", so fail loudly instead.
+  if (process.env.VERCEL && !process.env.VITE_BACKEND_URL) {
+    throw new Error('VITE_BACKEND_URL is not set. Add your Render server URL (e.g. https://syncwave-server.onrender.com) in Vercel → Settings → Environment Variables, then redeploy.')
+  }
+
   // .figma/make/deploy-preview passes `--mode development` for cached-preview builds.
   const emitSourcemaps = mode === 'development'
 
@@ -33,11 +42,27 @@ export default defineConfig(({ mode }) => {
       host: '0.0.0.0',
       port: parseInt(process.env.PORT || '8443'),
       strictPort: true,
+      // YouTube refuses to embed on pages served from a bare IP address, so
+      // phones should open http://<LAN-IP>.nip.io:<port> (a hostname that
+      // resolves to the LAN IP) — or the machine's mDNS .local name.
+      allowedHosts: ['.nip.io', '.sslip.io', '.local'],
       watch: { ignored: ['**/.figma/**'] },
+      // Same-origin dev: phones only need the Vite address; the backend
+      // (npm run dev in server/) is reached through these proxies.
+      proxy: {
+        '/api': BACKEND_DEV_URL,
+        '/audio': BACKEND_DEV_URL,
+        '/socket.io': { target: BACKEND_DEV_URL, ws: true },
+      },
     },
     preview: {
       host: '0.0.0.0',
       port: parseInt(process.env.PORT || '8443'),
+      proxy: {
+        '/api': BACKEND_DEV_URL,
+        '/audio': BACKEND_DEV_URL,
+        '/socket.io': { target: BACKEND_DEV_URL, ws: true },
+      },
     },
   }
 })

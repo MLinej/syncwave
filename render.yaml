@@ -1,0 +1,24 @@
+# Render blueprint for the SyncWave backend (Express + Socket.IO).
+# In Render: New → Blueprint → pick this repo. Fill in the two secret
+# values when prompted (or later under the service's Environment tab).
+services:
+  - type: web
+    name: syncwave-server
+    runtime: node
+    rootDir: server
+    plan: free
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      # server/package.json starts with --env-file-if-exists (Node ≥ 22.9)
+      - key: NODE_VERSION
+        value: 22.12.0
+      # Your Vercel URL(s), comma-separated; "*" wildcard allowed, e.g.
+      # https://syncwave.vercel.app,https://syncwave-*.vercel.app
+      - key: CORS_ORIGIN
+        sync: false
+      # Optional: enables YouTube search (pasting links works without it)
+      - key: YOUTUBE_API_KEY
+        sync: false

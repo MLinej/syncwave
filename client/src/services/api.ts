@@ -1,163 +1,28 @@
-import type { Room, Song, User } from "@/types";
-import { getSocket } from "./socket";
+import type { Track } from "@/types";
 import { API_BASE_URL } from "@/config";
 
-async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE_URL}${path}`, {
-    ...options,
-  });
-  if (!res.ok) {
-    const text = await res.text().catch(() => res.statusText);
-    throw new Error(text || `Request failed: ${res.status}`);
-  }
-  return res.json() as Promise<T>;
+async function get<T>(path: string): Promise<T> {
+  const res = await fetch(`${API_BASE_URL}${path}`);
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body?.error || `Request failed (${res.status})`);
+  return body as T;
 }
 
-// Helper to wait for a socket event
-function waitForSocketEvent<T>(successEvent: string, errorEvent: string, timeoutMs = 5000): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const socket = getSocket();
-    if (!socket.connected) {
-      socket.connect();
-    }
-    
-    const timeout = setTimeout(() => {
-      cleanup();
-      reject(new Error(`Timeout waiting for event: ${successEvent}`));
-    }, timeoutMs);
+export const fetchConfig = () => get<{ youtubeSearch: boolean }>("/config");
 
-    const onEvent = (data: T) => {
-      cleanup();
-      resolve(data);
-    };
+export const fetchLibrary = () => get<{ items: Track[] }>("/library").then((r) => r.items);
 
-    const onError = (err: { message: string }) => {
-      cleanup();
-      reject(new Error(err.message));
-    };
+export const searchYouTube = (q: string) =>
+  get<{ items: Track[] }>(`/youtube/search?q=${encodeURIComponent(q)}`).then((r) => r.items);
 
-    const cleanup = () => {
-      clearTimeout(timeout);
-      socket.off(successEvent, onEvent);
-      socket.off(errorEvent, onError);
-    };
+export const resolveYouTube = (url: string) =>
+  get<{ item: Track }>(`/youtube/resolve?url=${encodeURIComponent(url)}`).then((r) => r.item);
 
-    socket.on(successEvent, onEvent);
-    socket.on(errorEvent, onError);
-  });
+export function looksLikeYouTubeLink(text: string): boolean {
+  return /(youtube\.com|youtu\.be)\//i.test(text.trim());
 }
 
-// Room endpoints
-export async function createRoom(): Promise<Room> {
-  const socket = getSocket();
-  const userName = "Host User"; // TODO: Could pass from user state
-  socket.emit("create-room", { name: userName });
-  const data = await waitForSocketEvent<any>("room-created", "room-error");
-  return mapBackendRoom(data);
-}
-
-export async function joinRoom(roomId: string): Promise<Room> {
-  const socket = getSocket();
-  const userName = "Guest User";
-  socket.emit("join-room", { name: userName, roomCode: roomId });
-  const data = await waitForSocketEvent<any>("room-joined", "room-error");
-  return mapBackendRoom(data);
-}
-
-export async function leaveRoom(roomCode?: string): Promise<void> {
-  const socket = getSocket();
-  if (roomCode) {
-      socket.emit("leave-room", { roomCode });
-  }
-}
-
-export async function getRoom(roomId: string): Promise<Room> {
-  const socket = getSocket();
-  socket.emit("get-room-state", { roomCode: roomId });
-  const data = await waitForSocketEvent<any>("room-users", "room-error");
-  return mapBackendRoom(data);
-}
-
-export async function getConnectedUsers(roomId: string): Promise<User[]> {
-  // Uses getRoom under the hood since room state contains users
-  const room = await getRoom(roomId);
-  return room.connectedUsers;
-}
-
-// Song endpoints
-export async function getSongs(): Promise<Song[]> {
-  const data = await request<any[]>("/songs");
-  return data.map((track) => ({
-    id: track.id,
-    title: track.name,
-    artist: "Unknown Artist",
-    album: "Unknown Album",
-    duration: 0,
-    coverUrl: "",
-    url: track.url
-  }));
-}
-
-export async function getSong(songId: string): Promise<Song> {
-  const songs = await getSongs();
-  return songs.find(s => s.id === songId) as Song;
-}
-
-// Playback endpoints
-export async function selectSong(songId: string, roomCode?: string): Promise<void> {
-  const socket = getSocket();
-  if (roomCode) {
-    socket.emit("select-track", { roomCode, trackId: songId });
-  }
-}
-
-// These fire the request over the socket and return immediately — the real,
-// authoritative state change comes back to every client (including this one)
-// as a 'playback-state-updated' broadcast. There is deliberately no local
-// optimistic state write here: with scheduled playback now driving exact
-// timing, a second write path racing the broadcast would fight the scheduler.
-export function playSong(roomCode?: string): void {
-  if (!roomCode) return;
-  getSocket().emit("play-track", { roomCode });
-}
-
-export function stopSong(roomCode?: string): void {
-  if (!roomCode) return;
-  getSocket().emit("stop-track", { roomCode });
-}
-
-export function emitTrackReady(roomCode: string, trackId: string) {
-  const socket = getSocket();
-  socket.emit("track-ready", { roomCode, trackId });
-}
-
-export function pauseSong(roomCode?: string): void {
-  if (!roomCode) return;
-  getSocket().emit("pause-track", { roomCode });
-}
-
-export function seekSong(position: number, roomCode?: string): void {
-  if (!roomCode) return;
-  getSocket().emit("seek-track", { roomCode, position });
-}
-
-// Mapper to map backend room structure to frontend Room structure
-export function mapBackendRoom(data: any): Room {
-  return {
-    id: data.roomCode,
-    code: data.roomCode,
-    name: `Room ${data.roomCode}`,
-    hostId: data.users?.find((u: any) => u.isHost)?.socketId || "",
-    isLive: true,
-    isSynced: true,
-    connectedUsers: (data.users || []).map((u: any) => ({
-      id: u.socketId,
-      name: u.name,
-      isHost: u.isHost,
-      isOnline: true,
-      latency: 0,
-      trackStatus: u.trackStatus || 'idle'
-    })),
-    createdAt: new Date().toISOString()
-  };
+/** True once a pasted link contains a full 11-character video id. */
+export function isCompleteYouTubeLink(text: string): boolean {
+  return /(?:youtu\.be\/|[?&]v=|\/(?:shorts|embed|live)\/)[A-Za-z0-9_-]{11}(?![A-Za-z0-9_-])/.test(text.trim());
 }

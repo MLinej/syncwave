@@ -1,58 +1,71 @@
-export interface Song {
+export type TrackSource = "library" | "youtube";
+
+export interface Track {
   id: string;
+  source: TrackSource;
   title: string;
   artist: string;
-  album: string;
-  duration: number; // seconds
-  coverUrl?: string;
-  trackNumber?: number;
-  url?: string; // audio file path from backend
+  duration: number | null; // seconds
+  thumbnail: string | null;
+  url?: string; // library tracks: path on the backend
+  videoId?: string; // youtube tracks
 }
 
-export interface User {
+export interface MemberRef {
   id: string;
   name: string;
-  avatarUrl?: string;
+}
+
+export interface QueueItem {
+  uid: string;
+  track: Track;
+  addedBy: MemberRef | null;
+}
+
+export interface Suggestion {
+  uid: string;
+  track: Track;
+  by: MemberRef;
+  votes: string[];
+  createdAt: number;
+}
+
+export type TrackStatus = "idle" | "loading" | "ready" | "error";
+
+export interface Member {
+  id: string;
+  name: string;
   isHost: boolean;
-  latency?: number; // ms
-  isOnline: boolean;
-  trackStatus?: 'idle' | 'loading' | 'ready' | 'error';
-}
-
-export interface Room {
-  id: string;
-  code: string;
-  name: string;
-  hostId: string;
-  isLive: boolean;
-  isSynced: boolean;
-  connectedUsers: User[];
-  createdAt: string;
+  online: boolean;
+  trackStatus: TrackStatus;
+  joinedAt: number;
 }
 
 export interface PlaybackState {
-  currentSong: Song | null;
-  isPlaying: boolean;
-  status: 'playing' | 'paused' | 'stopped';
-  position: number; // seconds — live display position, ticked locally during playback
-  anchorPosition: number; // seconds — position AT scheduleAt, from server; used for scheduling/drift math
-  scheduleAt: number | null; // server clock (ms) timestamp when this state should take effect
-  volume: number; // 0-1
-  isSynced: boolean;
+  status: "idle" | "paused" | "playing";
+  trackUid: string | null;
+  position: number; // seconds, the position AT scheduleAt
+  scheduleAt: number | null; // server clock (ms) when this state takes effect
+  pendingStart: boolean; // host pressed play, room is waiting for devices
 }
 
-export type SocketStatus = 'connecting' | 'connected' | 'disconnected' | 'error';
-
-export interface AppState {
-  currentUser: User | null;
-  room: Room | null;
-  songs: Song[];
+export interface RoomState {
+  code: string;
+  hostId: string | null;
+  members: Member[];
+  current: QueueItem | null;
+  queue: QueueItem[];
+  suggestions: Suggestion[];
+  repeat: RepeatMode;
+  hasPrevious: boolean;
   playback: PlaybackState;
-  socketStatus: SocketStatus;
-  latency: number;
-  clockOffsetMs: number; // serverTime - localTime, from clock-sync
-  isLoading: boolean;
-  error: string | null;
 }
 
-export type NavItem = 'dashboard' | 'create-room' | 'join-room' | 'my-rooms' | 'connected-users' | 'settings' | 'about';
+export type RepeatMode = "off" | "all" | "one";
+
+export interface Session {
+  code: string;
+  name: string;
+}
+
+export type QueueMode = "now" | "next" | "last";

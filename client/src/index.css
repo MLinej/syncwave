@@ -1,33 +1,308 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Roboto+Mono:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600&display=swap');
 @import 'tailwindcss';
 
-@theme {
-  --font-inter: 'Inter', sans-serif;
-  --font-mono: 'Roboto Mono', 'Courier New', monospace;
+/*
+ * Design foundation
+ * - 8px spacing grid, three radii, one blur value
+ * - one accent color, taken from the current album art (set at runtime on
+ *   .app-root); registered as <color> so it cross-fades when the song changes
+ * - type: Plus Jakarta Sans, three sizes (13 / 15 / 26) and two weights (400 / 600)
+ */
+@property --accent {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #f59e4b; /* warm amber, like a VU meter, until a song sets it */
+}
+
+@property --glow {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #3d2a1c;
+}
+
+:root {
+  --bg: #0a0a0c;
+  --ink: #ffffff;
+  --muted: rgb(255 255 255 / 0.7); /* ≥4.5:1 on --bg */
+  --faint: rgb(255 255 255 / 0.5);
+  --line: rgb(255 255 255 / 0.08);
+  --glass: rgb(255 255 255 / 0.05);
+  --glass-strong: rgb(255 255 255 / 0.08);
+  --ok: #34d399;
+  --warn: #fbbf24;
+  --danger: #f87171;
+
+  --radius-lg: 24px;
+  --radius-md: 16px;
+  --radius-sm: 12px;
+  --blur: 24px;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  color-scheme: dark;
+}
+
+@theme inline {
+  --font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, -apple-system, sans-serif;
+
+  --color-bg: var(--bg);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-line: var(--line);
+  --color-glass: var(--glass);
+  --color-accent: var(--accent);
+  --color-glow: var(--glow);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --color-danger: var(--danger);
+
+  --text-sm: 13px;
+  --text-sm--line-height: 1.45;
+  --text-base: 15px;
+  --text-base--line-height: 1.5;
+  --text-lg: 26px;
+  --text-lg--line-height: 1.2;
+
+  --ease-out: var(--ease);
+  --default-transition-duration: 180ms;
+  --default-transition-timing-function: var(--ease);
+}
+
+/* short: — layouts for short windows (laptops, landscape phones) */
+@custom-variant short (@media (max-height: 760px));
+
+html {
+  background: var(--bg);
+  color: var(--ink);
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
 }
 
 html, body, #root {
-  height: 100%;
-  width: 100%;
+  min-height: 100%;
   margin: 0;
-  padding: 0;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: 15px;
+  overscroll-behavior-y: none;
+  -webkit-font-smoothing: antialiased;
+  background: var(--bg);
 }
 
 * {
   box-sizing: border-box;
 }
 
+::selection {
+  background: var(--accent);
+  color: #0a0a0c;
+}
+
+input[type='search']::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+}
+
+button {
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Thin translucent scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(255 255 255 / 0.18) transparent;
+}
+
 ::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
+  width: 6px;
+  height: 6px;
 }
-::-webkit-scrollbar-track {
-  background: rgba(255,255,255,0.02);
-}
+
 ::-webkit-scrollbar-thumb {
-  background: rgba(255,255,255,0.1);
-  border-radius: 9999px;
+  background: rgb(255 255 255 / 0.18);
+  border-radius: 999px;
 }
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(255,255,255,0.2);
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* The accent (set on <html> by RoomView) cross-fades over ~2s when the album art changes. */
+:root {
+  transition: --accent 2s var(--ease), --glow 2s var(--ease);
+}
+
+@layer components {
+  .glass {
+    background: var(--glass);
+    -webkit-backdrop-filter: blur(var(--blur)) saturate(140%);
+    backdrop-filter: blur(var(--blur)) saturate(140%);
+    border: 1px solid var(--line);
+    box-shadow:
+      0 20px 60px rgb(0 0 0 / 0.4),
+      inset 0 1px 0 rgb(255 255 255 / 0.08);
+  }
+
+  .label {
+    @apply text-sm font-semibold text-muted;
+  }
+
+  /* Buttons: 12-16px radius, ≥44px tall, 180ms transitions, quick press scale */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-[14px] px-4 min-h-11 text-base font-semibold transition active:scale-95 disabled:opacity-30 disabled:active:scale-100 select-none;
+  }
+
+  .btn-primary {
+    @apply bg-white text-[#0a0a0c] hover:bg-white/90;
+  }
+
+  .btn-accent {
+    @apply bg-accent text-[#0a0a0c] hover:brightness-110;
+  }
+
+  .btn-secondary {
+    @apply border border-line bg-white/[0.06] text-ink hover:bg-white/[0.1];
+  }
+
+  .btn-ghost {
+    @apply text-muted hover:bg-white/[0.06] hover:text-ink;
+  }
+
+  .icon-btn {
+    @apply inline-flex items-center justify-center rounded-full size-11 text-ink transition hover:bg-white/[0.08] active:scale-90 disabled:opacity-30 disabled:active:scale-100;
+  }
+
+  .field {
+    @apply w-full h-12 rounded-[16px] border border-line bg-white/[0.06] px-4 text-base text-ink placeholder:text-faint outline-none transition focus:border-accent/60 focus:bg-white/[0.08] focus:shadow-[0_0_0_4px_color-mix(in_srgb,var(--accent)_20%,transparent)];
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-2 rounded-full border border-line bg-white/[0.06] px-3 h-8 text-sm font-semibold text-ink transition hover:bg-white/[0.1];
+  }
+
+  .row {
+    @apply flex items-center gap-3 rounded-[16px] px-2 py-2 transition-colors hover:bg-white/[0.04];
+  }
+}
+
+.pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
+
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* ---------------------------------------------------------------- ambient */
+
+@keyframes drift-a {
+  0%, 100% { transform: translate(-10%, -8%) scale(1); }
+  50% { transform: translate(12%, 10%) scale(1.15); }
+}
+
+@keyframes drift-b {
+  0%, 100% { transform: translate(10%, 6%) scale(1.1); }
+  50% { transform: translate(-14%, -6%) scale(0.95); }
+}
+
+@keyframes drift-c {
+  0%, 100% { transform: translate(0, 12%) scale(0.9); }
+  50% { transform: translate(6%, -10%) scale(1.1); }
+}
+
+.aurora-blob {
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(80px);
+  will-change: transform;
+}
+
+/* Faint film grain to break up flat gradients */
+.grain {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity: 0.035;
+  mix-blend-mode: overlay;
+}
+
+/* ------------------------------------------------------------------ motion */
+
+/* Sleeve characters nodding along, notes drifting up */
+@keyframes bob {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  25% { transform: translateY(-1.2px) rotate(-3deg); }
+  75% { transform: translateY(-1.2px) rotate(3deg); }
+}
+
+.bob {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: bob 1.2s ease-in-out infinite;
+}
+
+@keyframes note-float {
+  0% { transform: translateY(4px); opacity: 0; }
+  20% { opacity: 1; }
+  100% { transform: translateY(-8px); opacity: 0; }
+}
+
+.note-float {
+  animation: note-float 3.3s ease-out infinite;
+}
+
+@keyframes breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.015); }
+}
+
+.breathe {
+  animation: breathe 5s var(--ease) infinite;
+}
+
+@keyframes eq {
+  0%, 100% { transform: scaleY(0.3); }
+  50% { transform: scaleY(1); }
+}
+
+.eq-bar {
+  transform-origin: bottom;
+  animation: eq 0.9s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { box-shadow: 0 0 0 0 currentColor; opacity: 1; }
+  50% { box-shadow: 0 0 0 4px transparent; opacity: 0.7; }
+}
+
+.pulse-dot {
+  animation: pulse-dot 2.4s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  from { background-position: -200% 0; }
+  to { background-position: 200% 0; }
+}
+
+.shimmer {
+  background: linear-gradient(90deg, rgb(255 255 255 / 0.05) 25%, rgb(255 255 255 / 0.11) 50%, rgb(255 255 255 / 0.05) 75%) 0 0 / 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aurora-blob, .breathe, .eq-bar, .pulse-dot, .shimmer, .bob, .note-float {
+    animation: none !important;
+  }
+  :root {
+    transition: none;
+  }
 }

@@ -1,5 +1,9 @@
 {
-  "description": "This interactive web application offers a seamless music sharing experience, allowing users to create and join rooms, play songs, and connect with friends in real-time.",
+  "title": "SyncWave",
+  "description": "Turn every phone into one speaker. Synchronized group listening with YouTube requests.",
+  "icons": {
+    "icon": "/favicon.png"
+  },
   "robots": {
     "index": false
   },

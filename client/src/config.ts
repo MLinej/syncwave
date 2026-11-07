@@ -1,17 +1,16 @@
-// Central place for backend/socket URL resolution.
+// Backend URL resolution.
 //
-// Priority:
-// 1. VITE_BACKEND_URL from .env (explicit override, e.g. a fixed LAN IP)
-// 2. Same hostname the page was loaded from, port 3000 (works automatically
-//    whether you open the app via localhost or a LAN IP, since Vite is
-//    started with --host 0.0.0.0 and the server also binds 0.0.0.0)
+// By default the client talks to the same origin it was loaded from:
+// - in development Vite proxies /api, /audio and /socket.io to the server
+//   (see vite.config.ts), so phones on the LAN only need the Vite address;
+// - in production the server serves the built client itself.
+// Set VITE_BACKEND_URL only when the server lives on a different origin.
 function resolveBackendUrl(): string {
   const envUrl = import.meta.env.VITE_BACKEND_URL as string | undefined;
   if (envUrl && envUrl.trim()) {
     return envUrl.trim().replace(/\/$/, "");
   }
-  const { protocol, hostname } = window.location;
-  return `${protocol}//${hostname}:3000`;
+  return window.location.origin;
 }
 
 export const BACKEND_URL = resolveBackendUrl();

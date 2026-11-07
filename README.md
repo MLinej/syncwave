@@ -1,207 +1,107 @@
-# SyncWave - Multi-Device Synchronized Music Player (MVP)
+# SyncWave
 
-A real-time room application for synchronized music playback across devices. This MVP implements only the room/device synchronization layer - no audio playback yet.
+Turn every phone in the room into one speaker. One person hosts a room, friends join by QR code or link, and every device plays the same song in tight sync. Anyone can suggest songs from YouTube; the host decides what plays.
 
-## Project Structure
-
-```
-syncwave/
-├── client/                 # React + Vite + Tailwind frontend
-│   ├── src/
-│   │   ├── components/     # Reusable components (UserList)
-│   │   ├── pages/          # Page components (Home, Room)
-│   │   ├── socket.js       # Socket.IO client configuration
-│   │   ├── App.jsx         # Routing
-│   │   └── main.jsx        # Entry point
-│   ├── package.json
-│   ├── vite.config.js      # Configured for LAN access (--host)
-│   └── tailwind.config.js
-├── server/                 # Node.js + Express + Socket.IO backend
-│   ├── server.js           # All server logic in one file
-│   └── package.json
-└── README.md
-```
-
-## Quick Start
-
-### 1. Install Backend Dependencies
+## Quick start (development)
 
 ```bash
-cd server
-npm install
+cd server && npm install && npm run dev      # API + realtime on :3000
+cd client && npm install && npm run dev      # app on :8443 (proxies to :3000)
 ```
 
-### 2. Install Frontend Dependencies
+Open `http://localhost:8443` on the laptop. On phones (same Wi-Fi), open `http://<laptop-LAN-IP>:8443` or scan the QR code in the room's **Invite** sheet. Find the IP with `hostname -I` (Linux), `ipconfig getifaddr en0` (macOS) or `ipconfig` (Windows).
+
+Vite proxies `/api`, `/audio` and `/socket.io` to the server, so phones only need the one address.
+
+> **YouTube and IP addresses.** YouTube refuses to play embeds on pages opened by bare IP ("This video is unavailable", error 150). The app detects this and redirects to `http://<LAN-IP>.nip.io:8443`, a public DNS name that points back to your laptop. That needs internet for the DNS lookup, which YouTube needs anyway. You can also open that address directly. Library songs work on either address.
+
+## Deploy: frontend on Vercel, backend on Render
+
+The repo is set up for this split (`render.yaml` at the root, `client/vercel.json`). Do the backend first so you have its URL.
+
+**1. Backend → Render**
+1. Render dashboard → **New → Blueprint** → select this GitHub repo. It reads `render.yaml` and creates the `syncwave-server` web service (root `server/`, Node 22, health check `/api/health`).
+2. When prompted, set `CORS_ORIGIN` to your Vercel URL. You don't know it yet, so enter a placeholder like `https://syncwave.vercel.app` and fix it after step 2. Optionally set `YOUTUBE_API_KEY`.
+3. Deploy, then copy the service URL, e.g. `https://syncwave-server.onrender.com`. Check `…/api/health` returns `{"ok":true}`.
+
+**2. Frontend → Vercel**
+1. Vercel → **Add New → Project** → import the repo.
+2. Set **Root Directory** to `client`. Framework, build and output come from `client/vercel.json`.
+3. Under **Environment Variables**, add `VITE_BACKEND_URL` = your Render URL (no trailing slash). The build fails with a clear message if it's missing.
+4. Deploy and copy the URL, e.g. `https://syncwave.vercel.app`.
+
+**3. Connect them**
+- In Render → `syncwave-server` → **Environment**, set `CORS_ORIGIN` to the exact Vercel URL. To also allow preview deploys, add a wildcard entry: `https://syncwave.vercel.app,https://syncwave-*.vercel.app`. Save; Render redeploys.
+- If you later add a custom domain on Vercel, add it to `CORS_ORIGIN` too. If you move the backend, update `VITE_BACKEND_URL` and redeploy Vercel; the variable is baked in at build time.
+
+**Good to know**
+- Render's **free** plan sleeps after ~15 minutes without traffic. The first visit then takes ~30-60s to wake up, and any open rooms are lost when it sleeps or redeploys (rooms live in memory). A paid instance stays awake.
+- The server only accepts browser connections (HTTP and WebSocket) from origins in `CORS_ORIGIN`.
+
+## Single-server alternative
 
 ```bash
-cd client
-npm install
+cd client && npm run build                   # outputs client/dist
+cd server && npm start                       # serves client/dist + API on one port
 ```
 
-### 3. Start Backend Server
+Put it behind HTTPS (Caddy, nginx, Cloudflare Tunnel…). HTTPS unlocks the clipboard API, screen wake lock and share sheets on phones.
 
-```bash
-cd server
-npm run dev
-# or: npm start
+### Server environment
+
+Put these in `server/.env` (copy `server/.env.example`). It's loaded automatically by `npm run dev` / `npm start` and is git-ignored.
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `PORT` | `3000` | HTTP/WebSocket port |
+| `YOUTUBE_API_KEY` | — | Enables YouTube **search**. Without it, users can still paste YouTube links. |
+| `CORS_ORIGIN` | `*` | Allowed frontend origins, comma-separated, one `*` wildcard per entry (e.g. `https://syncwave.vercel.app,https://syncwave-*.vercel.app`). Applies to the API and to WebSocket connections. |
+| `TRUST_PROXY` | `1` | Number of reverse proxies in front of the server (Render = 1), so rate limits see real client IPs |
+
+YouTube Data API search costs 100 quota units per query (the free tier is 10,000 units/day). Results are cached for 30 minutes, and the endpoint is rate-limited per IP.
+
+Client: set `VITE_BACKEND_URL` only if the API runs on a different origin than the page.
+
+## How the sync works
+
+All devices share one clock: the server's monotonic clock.
+
+1. **Clock sync.** Each client runs NTP-style ping bursts over the WebSocket and keeps the median offset of its lowest-latency samples. It re-measures after every reconnect or wake-up.
+2. **Scheduled changes.** Play, pause and seek are never applied on receipt. The server sends *"position P at server time T"*, with T 0.7–1.4 s in the future, so every device can pre-roll.
+3. **Library songs (Web Audio).** The file is decoded and started with `AudioBufferSourceNode.start(when, offset)`. `when` is mapped through `getOutputTimestamp()`, so the moment sound leaves the speaker lines up, output latency included. A drift loop trims `playbackRate` by up to ±0.3% (inaudible) and crossfades to a re-sync if a device slips more than 40 ms. Typical spread between devices: a few milliseconds. Files over 40 MB stream through a media element with closed-loop correction instead, because decoding them could exhaust a phone's memory.
+4. **YouTube songs.** These play through the official IFrame embed, which can't be scheduled sample-accurately. Each device instead runs a closed loop against the shared clock: it starts muted, seeks with a learned per-device seek latency until within 45 ms, then unmutes. A ±5% pitch-preserving tempo trim then holds it within about ±10 ms.
+5. **Bluetooth.** Headphones and speakers add delay the browser can't see. Each device has a *Device delay compensation* slider (Sync & audio sheet) with presets.
+
+Other mobile details:
+- Audio unlocks on the first tap.
+- The iOS mute switch is bypassed via `navigator.audioSession`.
+- Screen wake lock is held while playing.
+- Lock-screen controls go through the Media Session API.
+- Reconnects are automatic and keep the same seat, including the host role. The host role passes on only after 20 s offline.
+
+## Features
+
+- Host a room, or join with a 6-character code, link or QR code
+- YouTube search or link paste, plus a library of files in `server/public/audio`
+- Guests **suggest** songs and **upvote** each other's picks. The host can play now, play next, queue or dismiss.
+- Queue: reorder, remove, play now, auto-advance
+- Waits for every device to load before starting (max 8 s, then late devices join mid-song in sync)
+- Per-device volume and delay calibration, plus live sync diagnostics
+- Mobile-first layout with bottom tabs and a mini player; two columns on desktop
+
+## Project layout
+
+```
+server/
+  server.js            rooms, membership, queue, suggestions, playback scheduler
+  lib/youtube.js       search / link resolution / validation
+  public/audio/        room library (any mp3/m4a/wav/ogg/flac/opus/webm)
+client/src/
+  sync/                clock sync, Web Audio engine, YouTube engine, glue
+  services/            socket, REST API, room actions + reconnect
+  state/               tiny external stores (room, sync, toasts)
+  pages/               Landing, RoomView
+  components/room/     NowPlaying, Queue, Search, People, Sync & Invite sheets
 ```
 
-Server runs on **port 3000**, listening on all interfaces (`0.0.0.0`).
-Output:
-```
-Server running on port 3000
-Access from LAN: http://<your-laptop-ip>:3000
-```
-
-### 4. Start Frontend (with LAN access)
-
-```bash
-cd client
-npm run dev
-```
-
-Vite runs on **port 5173**, accessible from LAN via `--host` flag.
-Output:
-```
-  VITE v5.x.x  ready in xxx ms
-  ➜  Local:   http://localhost:5173/
-  ➜  Network: http://192.168.x.x:5173/   ← Use this IP on your phone
-```
-
-### 5. Find Your Laptop's Local IP
-
-**Linux/macOS:**
-```bash
-hostname -I
-# or
-ip addr show | grep "inet " | grep -v 127.0.0.1
-```
-
-**Windows:**
-```cmd
-ipconfig
-```
-Look for `IPv4 Address` under your Wi-Fi adapter (e.g., `192.168.1.42`).
-
-### 6. Test from Phone
-
-1. Connect phone to **same Wi-Fi** as laptop
-2. Open browser on phone
-3. Go to: `http://<your-laptop-ip>:5173`
-   - Example: `http://192.168.1.42:5173`
-
-> ⚠️ **Important:** On your phone, `localhost` means **the phone itself**, not your laptop. You MUST use the laptop's LAN IP address.
-
-## How to Test the Complete Flow
-
-1. **Laptop**: Open `http://localhost:5173`
-2. **Laptop**: Enter name "Jenil" → Click **Create Room**
-3. **Laptop**: Note the room code (e.g., `K7P2QA`)
-4. **Phone**: Open `http://<laptop-ip>:5173`
-5. **Phone**: Enter name "Raj" → Enter room code `K7P2QA` → Click **Join Room**
-6. **Both devices** should instantly show:
-   ```
-   Connected Devices: 2
-   👑 Jenil — Host
-   Raj
-   ```
-7. **Phone**: Close browser tab
-8. **Laptop** should instantly update to:
-   ```
-   Connected Devices: 1
-   👑 Jenil — Host
-   ```
-
-## Socket.IO Events
-
-### Client → Server
-| Event | Payload | Description |
-|-------|---------|-------------|
-| `create-room` | `{ name: string }` | Create new room, become host |
-| `join-room` | `{ name: string, roomCode: string }` | Join existing room |
-
-### Server → Client
-| Event | Payload | Description |
-|-------|---------|-------------|
-| `room-created` | `{ roomCode, users[] }` | Room created successfully |
-| `room-joined` | `{ roomCode, users[] }` | Joined room successfully |
-| `room-users` | `{ users[], roomCode }` | Broadcast: user list updated |
-| `room-error` | `{ message }` | Error (room not found, name taken, etc.) |
-
-### Socket.IO Concepts Used
-
-- **`socket.id`**: Unique ID for each connected socket (browser tab/device)
-- **`socket.join(roomCode)`**: Adds socket to a server-side "room" (string name)
-- **`socket.emit()`**: Send to **only this socket**
-- **`io.to(room).emit()`**: Send to **all sockets in room** (including sender)
-- **`socket.to(room).emit()`**: Send to **all sockets in room EXCEPT sender**
-- **`socket.on('disconnect')`**: Fires when tab closes, refreshes, or network drops
-
-## Room Data Structure (In-Memory)
-
-```js
-const rooms = new Map(); // roomCode -> Room
-
-// Room object:
-{
-  roomCode: "A7K2PQ",
-  host: "socket-id-of-creator",
-  users: [
-    { socketId: "socket-id", name: "Jenil", isHost: true },
-    { socketId: "socket-id", name: "Raj", isHost: false }
-  ]
-}
-```
-
-## Key Implementation Details
-
-- **Server is authoritative**: Frontend never decides room existence, host status, or user list
-- **Room codes**: 6-char uppercase alphanumeric, generated server-side, case-insensitive on join
-- **Host transfer**: If host disconnects, first remaining user becomes host
-- **Empty room cleanup**: Rooms deleted when last user leaves
-- **No database**: All state in memory (Map) - resets on server restart
-
-## Configuration
-
-### Backend (server.js)
-- Port: `3000` (env `PORT`)
-- CORS: Allows all origins (`*`) for development
-- Listens on: `0.0.0.0` (all network interfaces)
-
-### Frontend (vite.config.js)
-```js
-server: {
-  host: '0.0.0.0',  // Listen on LAN
-  port: 5173,
-  strictPort: true
-}
-```
-
-### Socket URL (client/src/socket.js)
-Defaults to `http://localhost:3000`. Override with:
-```bash
-VITE_SOCKET_URL=http://192.168.1.42:3000 npm run dev
-```
-
-## Tech Stack
-
-| Layer | Technology |
-|-------|------------|
-| Frontend | React 18, Vite 5, Tailwind CSS 3, React Router 6 |
-| Realtime | Socket.IO Client 4 |
-| Backend | Node.js, Express 4, Socket.IO 4 |
-| Language | ES Modules (type: "module") |
-
-## What's NOT Implemented (Future)
-
-- Audio playback / synchronization
-- WebRTC for peer-to-peer audio
-- Database (Redis, PostgreSQL)
-- Authentication / user accounts
-- Playlists, queue, search
-- Spotify/Apple Music integration
-- Background playback on mobile
-
-## License
-
-MIT - Built for learning/experimentation
+State is in memory: restarting the server ends all rooms.
