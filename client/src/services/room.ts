@@ -97,6 +97,14 @@ export function reportTrackError(trackUid: string) {
 }
 
 // --- connection lifecycle -------------------------------------------------
+function loadConfig() {
+  fetchConfig()
+    .then((cfg) => appStore.set({ youtubeSearch: cfg.youtubeSearch }))
+    .catch(() => {
+      /* server still waking up — the next connect retries */
+    });
+}
+
 let initialised = false;
 
 export function initConnection() {
@@ -107,6 +115,9 @@ export function initConnection() {
   socket.on("connect", async () => {
     appStore.set({ connection: "online" });
     clock.start(socket);
+    // Re-read server features on every connect: on a cold start (e.g. a
+    // sleeping free-tier host) the request made at page load can fail.
+    loadConfig();
 
     // Transparent rejoin after a refresh or a dropped connection.
     const { session } = appStore.get();
@@ -152,9 +163,6 @@ export function initConnection() {
     toast(reason, "error");
   });
 
-  fetchConfig()
-    .then((cfg) => appStore.set({ youtubeSearch: cfg.youtubeSearch }))
-    .catch(() => {});
-
+  loadConfig();
   socket.connect();
 }
